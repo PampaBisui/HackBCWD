@@ -11,6 +11,7 @@
 // @icon          https://github.com/abusalam
 // ==/UserScript==
 
+
 function CheckActive() {
   if (jQ('#Login').is(":enabled")) {
     jQ("#Login").click();
@@ -44,25 +45,92 @@ function addJQuery(callback) {
 
     jQ(function() {
 
-      jQ("#CmdAppIDs").click(function() {
-        console.log(GM_listValues());
-        var vals = [];
+      jQ("#CmdClear").click(function() {
         jQ.each(GM_listValues(), function(index, value) {
-          vals.push(GM_getValue(value));
-          //GM_deleteValue(value);
+          GM_deleteValue(value);
         });
-        if (jQ("#AppIDs").val().length === 0) {
-          jQ("#AppIDs").val(vals.join(","));
+      });
+
+      /**
+       * Load Stored AppIDs
+       */
+
+      var LoadStoredAppIDs = function() {
+
+        console.log(GM_listValues());
+        var Status = [];
+        var LastIndex = GM_getValue("LastIndex");
+        var IsProcessed, AppIDs = [], AppID;
+
+        for (i = 1; i < LastIndex; i++) {
+          IsProcessed = GM_getValue("AppID_" + i + "_Status");
+          AppID = GM_getValue("AppID_" + i);
+          if (AppID.length > 0) {
+            AppIDs.push(AppID);
+            Status.push(AppID + " : " + IsProcessed);
+          }
         }
-        var AppIndex = 1;
+
+        if (jQ("#AppIDs").val().length === 0) {
+          jQ("#AppIDs").val(AppIDs.join(","));
+        }
+        return Status;
+      };
+
+      /**
+       * Click : [Start Processing]
+       *
+       * Batch Process Applications
+       */
+      jQ("#CmdAppIDs").click(function() {
+
         var AppIDs = "" + jQ("#AppIDs").val();
         var AllIDs = AppIDs.replace(/\r\n+|\r+|\n+|\s+/gm, '').split(",");
+
+        // Store All AppIDs
+        var AppIndex = 1;
         jQ.each(AllIDs, function(index, value) {
           if (value.length > 0) {
-            alert("Index: " + AppIndex + " = " + value);
-            GM_setValue("AppID_" + AppIndex++, value);
+            GM_setValue("AppID_" + AppIndex, value);
+            GM_setValue("AppID_" + AppIndex + "_Status", "Pending");
+            GM_setValue("LastIndex", AppIndex);
+            AppIndex++;
           }
         });
+
+        // Function to Process to Next Step
+
+        var StoreAppDetails = function() {
+          var AppName = jQ("#nameValue").html();
+          if (AppName.length > 5) {
+            var AppIndex = GM_getValue("CurrentIndex");
+            var AppName = jQ("#nameValue").html();
+            GM_setValue("AppID_" + AppIndex + "_Name", AppName);
+            jQ("#btn").click();
+          } else {
+            setTimeout(StoreAppDetails, 2000);
+            return;
+          }
+        };
+
+        // Function to Process First Non-Processed AppID
+
+        var ProcessFirstAppID = function() {
+          var LastIndex = GM_getValue("LastIndex");
+          for (i = 1; i < LastIndex; i++) {
+            var IsProcessed = GM_getValue("AppID_" + i + "_Status");
+            if (IsProcessed === "Pending") {
+              var AppID = GM_getValue("AppID_" + i);
+              jQ("#appid").val(AppID).blur();
+              GM_setValue("CurrentIndex", i);
+              GM_setValue("AppID", AppID);
+              break;
+            }
+          }
+          StoreAppDetails();
+        };
+
+        ProcessFirstAppID();
       });
 
       jQ("#CmdStatus").click(function() {
@@ -72,14 +140,7 @@ function addJQuery(callback) {
           jQ("#CmdStatus").val("Hide Status");
           jQ("#AppIDs").hide();
 
-          var vals = [];
-          jQ.each(GM_listValues(), function(index, value) {
-            vals.push(GM_getValue(value));
-          });
-
-          if (jQ("#AppIDs").val().length === 0) {
-            jQ("#AppIDs").val(vals.join(","));
-          }
+          var vals = LoadStoredAppIDs();
           var StatusDiv = document.createElement("div");
           StatusDiv.setAttribute("id", "AppStatus");
 
@@ -91,6 +152,7 @@ function addJQuery(callback) {
           jQ("#AppStatus").remove();
           jQ("#AppIDs").show();
           jQ("#CmdStatus").val("Show Status");
+
         }
 
       });
@@ -111,19 +173,21 @@ function main() {
   jQ("#uid").val("<SDO-UserID>");
   jQ("#pwd").val("<Password>").blur();
 
-  jQ("#appid").val("<AppID>").blur();
+  jQ("#appid").hide(); //.val("<AppID>").blur();
   jQ("#process font").html("Please enter all the Application IDs separated"
           + " by comma: ','");
   var formElem = '<textarea id="AppIDs" rows="20" cols="60"></textarea><br/>'
           + '<input type="button" id="CmdAppIDs" value="Start Processing"/>'
-          + '<input type="button" id="CmdStatus" value="Show Status"/>';
+          + '<input type="button" id="CmdStatus" value="Show Status"/>'
+          + '<input type="button" id="CmdClear" value="Clear Status"/>';
 
   jQ("#appid").parent().append(formElem);
 
-  jQ('[src$="login.jsp"]').load(function() {
-    console.log("Adding My Content: " + jQ("div").length);
-    //.html("<span>My Content</span>");
-  });
+  if (jQ("#action").is(":visible")) {
+    jQ("#action").val("A06");
+    jQ("#comment").val("Auto-Approved");
+    jQ("#comsubmit").delay(10000).trigger("submit");
+  }
 }
 
 // load jQuery and execute the main function
