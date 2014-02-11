@@ -62,6 +62,7 @@ function addJQuery(callback) {
       // Function to Process to Next Step
 
       var StoreAppDetails = function() {
+        console.log("StoreAppDetails");
         var AppName = jQ("#nameValue").html();
         if (AppName.length > 5) {
           var AppIndex = localStorage.getItem("CurrentIndex");
@@ -69,7 +70,18 @@ function addJQuery(callback) {
           localStorage.setItem("AppID_" + AppIndex + "_Name", AppName);
           jQ("#btn").click();
         } else {
-          setTimeout(StoreAppDetails, 2000);
+
+          //If AppName doesn't come up in 1min again trigger for it
+          var TimeNow = new Date();
+          if ((TimeNow.getTime() - localStorage.getItem("LastRespTime")) > 60000) {
+            var AppIndex = localStorage.getItem("CurrentIndex");
+            var AppID = localStorage.getItem("AppID_" + AppIndex);
+
+            jQ("#appid").val(AppID).blur();
+            localStorage.setItem("LastRespTime", TimeNow.getTime());
+          }
+
+          setTimeout(StoreAppDetails, 5000);
           return;
         }
       };
@@ -258,6 +270,7 @@ function addJQuery(callback) {
         }
         PrintFirstAppID(); //@todo Process Printing
       });
+
       /**
        *  Click : [Show List]
        *
@@ -283,6 +296,7 @@ function addJQuery(callback) {
         }
 
       });
+
       /**
        *  Waiting for PrintCertificate interface to come
        */
@@ -315,13 +329,15 @@ function addJQuery(callback) {
           localStorage.setItem("AppID_" + i + "_Status", "Not Allowed!");
           ProcessFirstAppID();
         }
+        console.log("AppID_" + i + "_Status " + Msg);
       }
 
       /**
-       * Continiously Poll untill Approved
+       * Continiously Poll until Approved
        * Only if CurrentStatus = IsApproved
        */
       var CheckApproval = function() {
+        console.log("CheckApproval");
         if (localStorage.getItem("CurrentStatus") === "IsApproved") {
           if (jQ("tr.alt_tr:nth-child(3) > td:nth-child(5)").is(":visible")) {
             // Application Approved
@@ -334,8 +350,10 @@ function addJQuery(callback) {
               localStorage.setItem("AppID_" + i + "_Status", "Approved");
               jQ("#btnOpt").val("Go Back");
               jQ("#btnSubmit").attr('disabled', 'disabled');
-              alert(Msg);
+              console.log("CheckApproval: Approved " + Msg);
               jQ("#comsubmit").trigger("submit");
+            } else {
+              console.log("CheckApproval:" + Msg);
             }
           } else {
             setTimeout(CheckApproval, 2000);
@@ -353,34 +371,6 @@ function addJQuery(callback) {
 
 // the guts of this userscript
 function main() {
-
-  var TryLogin = function() {
-    console.log("Trying For Login");
-    if (jQ('#Login').is(":enabled")) {
-      jQ("#Login").click();
-      jQ("#Login").attr('disabled', 'disabled');
-    } else if (localStorage.getItem("TryLogin") === "Yes") {
-      setTimeout(TryLogin, 2000);
-      return;
-    }
-  };
-
-  var SwitchToJob = function() {
-    if (jQ('#NewsDiv').is(":visible")) {
-      //@todo Switch To Job Properly
-      localStorage.setItem("TryLogin", "No:NewsDiv");
-      var URL = '';
-      if (localStorage.getItem("LastJob") === "Print") {
-        URL = BaseURL + 'jsp/cert_module/process_certNew.jsp'
-      } else {
-        URL = BaseURL + 'jsp/user_module/processApplication.jsp'
-      }
-      parent.location.href = URL;
-      console.log("NewsDiv:" + URL);
-      setTimeout(SwitchToJob, 2000);
-      return;
-    }
-  };
 
   if (window.location.href === BaseURL) {
     var URL = BaseURL + "jsp/user_module/user.html";
@@ -416,6 +406,46 @@ function main() {
   }
 
   /**
+   * Try for Login if Login Button is enabled
+   * Only till TryLogin = Yes
+   *
+   * @returns {Boolean}
+   */
+  var TryLogin = function() {
+    console.log("Trying For Login");
+    if (jQ('#Login').is(":enabled")) {
+      jQ("#Login").click();
+      jQ("#Login").attr('disabled', 'disabled');
+    } else if (localStorage.getItem("TryLogin") === "Yes") {
+      setTimeout(TryLogin, 2000);
+      return true;
+    }
+  };
+
+  /**
+   * Switch to module according to last working state
+   * Only if NewsDiv is visible.
+   *
+   * @returns {Boolean}
+   */
+  var SwitchToJob = function() {
+    if (jQ('#NewsDiv').is(":visible")) {
+      //@todo Switch To Job Properly
+      localStorage.setItem("TryLogin", "No:NewsDiv");
+      var URL = '';
+      if (localStorage.getItem("LastJob") === "Print") {
+        URL = BaseURL + 'jsp/cert_module/process_certNew.jsp'
+      } else {
+        URL = BaseURL + 'jsp/user_module/processApplication.jsp'
+      }
+      parent.location.href = URL;
+      console.log("NewsDiv:" + URL);
+      setTimeout(SwitchToJob, 2000);
+      return true;
+    }
+  };
+
+  /**
    * Continious Polling for Server Response
    *
    * @returns {Boolean}
@@ -446,7 +476,6 @@ function main() {
   };
 
   RefreshOnWait();
-
   TryLogin();
   SwitchToJob();
 
