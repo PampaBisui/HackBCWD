@@ -3,22 +3,29 @@
 // @namespace     https://github.com/abusalam/HackBCWD
 // @description   Auto Approval for SDO: http://castcertificatewb.gov.in/
 // @include       http://castcertificatewb.gov.in/*
-// @grant         GM_getValue
-// @grant         GM_setValue
-// @grant         GM_deleteValue
-// @grant         GM_listValues
+// @grant         none
+// @downloadURL   https://github.com/abusalam/HackBCWD/raw/master/HackBCWD.user.js
+// @updateURL     https://github.com/abusalam/HackBCWD/raw/master/HackBCWD.user.js
 // @version       1.0
-// @icon          https://github.com/abusalam
+// @icon          http://www.gravatar.com/avatar/43f0ea57b814fbdcb3793ca3e76971cf
 // ==/UserScript==
 
-
-// a function that loads jQuery and calls a callback function
-// when jQuery has finished loading
-
+/**
+ * Function that loads jQuery and calls a callback function
+ * when jQuery has finished loading
+ *
+ * How can I use jQuery in Greasemonkey scripts in Google Chrome?
+ * All Credits to Original Author for this wonderfull function.
+ *
+ * @author  Erik Vergobbi Vold & Tyler G. Hicks-Wright
+ * @link    http://stackoverflow.com/questions/2246901
+ * @param   {reference} callback
+ * @returns {undefined}
+ */
 function addJQuery(callback) {
   var script = document.createElement("script");
-  script.setAttribute("src",
-          "//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js");
+  var jQueryCDN = "//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js";
+  script.setAttribute("src", jQueryCDN);
   script.addEventListener('load', function() {
     var script = document.createElement("script");
     script.textContent = 'window.jQ=jQuery.noConflict(true);'
