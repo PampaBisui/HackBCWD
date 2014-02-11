@@ -12,20 +12,6 @@
 // ==/UserScript==
 
 
-function CheckActive() {
-  if (jQ('#Login').is(":enabled")) {
-    jQ("#Login").click();
-    jQ("#Login").attr('disabled', 'disabled');
-  } else if (jQ('[name="content"]').is(":visible")) {
-    var URL = 'http://castcertificatewb.gov.in/jsp/user_module/processApplication.jsp'
-    jQ('[name="content"]').attr('src', URL);
-  } else {
-    setTimeout(CheckActive, 2000);
-    return;
-  }
-
-}
-
 // a function that loads jQuery and calls a callback function
 // when jQuery has finished loading
 
@@ -35,10 +21,11 @@ function addJQuery(callback) {
           "//ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js");
   script.addEventListener('load', function() {
     var script = document.createElement("script");
-    script.textContent = "window.jQ=jQuery.noConflict(true);("
-            + callback.toString() + ")();";
+    script.textContent = 'window.jQ=jQuery.noConflict(true);'
+            + 'var BaseURL = "http://castcertificatewb.gov.in/";'
+            + '(' + callback.toString() + ')();';
     document.body.appendChild(script);
-    CheckActive();
+
     /**
      * Register Events using jQuery
      *
@@ -116,7 +103,7 @@ function addJQuery(callback) {
           localStorage.setItem("AppID_" + AppIndex + "_CertName", AppName);
           localStorage.setItem("AppID_" + AppIndex + "_PrintStatus", "Ready");
           localStorage.setItem("CurrentStatus", "PrintNext");
-          URL = "http://castcertificatewb.gov.in/jsp/cert_module/process_certNew.jsp";
+          var URL = BaseURL + "jsp/cert_module/process_certNew.jsp";
           window.open(URL, "_self");
         } else {
           console.log("Waiting for StorePrintDetails");
@@ -164,6 +151,7 @@ function addJQuery(callback) {
        * Batch Process Applications
        */
       jQ("#CmdAppIDs").click(function() {
+        localStorage.setItem("LastJob", "Approve");
         jQ("#CmdAppIDs").attr('disabled', 'disabled');
         var AppIDs = "" + jQ("#AppIDs").val();
         var AllIDs = AppIDs.replace(/\r\n+|\r+|\n+|\s+/gm, '').split(",");
@@ -216,8 +204,7 @@ function addJQuery(callback) {
       var LoadPrintAppIDs = function() {
 
         var Status = [];
-        var BaseURL = "http://castcertificatewb.gov.in/servlet/servAcknoReport"
-                + "?msg=CERT&appid=";
+        var CertURL = BaseURL + "servlet/servAcknoReport?msg=CERT&appid=";
         var LastIndex = localStorage.getItem("PrintLastIndex");
         var IsPrinted, AppIDs = [], AppID, CertNo, CertName, PrintLink;
         for (i = 1; i < LastIndex; i++) {
@@ -226,7 +213,7 @@ function addJQuery(callback) {
           CertNo = localStorage.getItem("AppID_" + i + "_CertNo");
           CertName = localStorage.getItem("AppID_" + i + "_CertName");
           if (IsPrinted === "Ready") {
-            PrintLink = '<a href="' + BaseURL + CertNo + '" target="_blank">'
+            PrintLink = '<a href="' + CertURL + CertNo + '" target="_blank">'
                     + CertNo + '</a>';
           } else {
             PrintLink = IsPrinted;
@@ -249,6 +236,7 @@ function addJQuery(callback) {
        * Batch Process Applications for Printing
        */
       jQ("#CmdPrint").click(function() {
+        localStorage.setItem("LastJob", "Print");
         jQ("#CmdPrint").attr('disabled', 'disabled');
         var AppIDs = "" + jQ("#AppIDs").val();
         var AllIDs = AppIDs.replace(/\r\n+|\r+|\n+|\s+/gm, '').split(",");
@@ -365,9 +353,39 @@ function addJQuery(callback) {
 
 // the guts of this userscript
 function main() {
-  if (window.location.href === "http://castcertificatewb.gov.in/") {
-    var URL = "http://castcertificatewb.gov.in/jsp/user_module/user.html";
+
+  var TryLogin = function() {
+    console.log("Trying For Login");
+    if (jQ('#Login').is(":enabled")) {
+      jQ("#Login").click();
+      jQ("#Login").attr('disabled', 'disabled');
+    } else if (localStorage.getItem("TryLogin") === "Yes") {
+      setTimeout(TryLogin, 2000);
+      return;
+    }
+  };
+
+  var SwitchToJob = function() {
+    if (jQ('#NewsDiv').is(":visible")) {
+      //@todo Switch To Job Properly
+      localStorage.setItem("TryLogin", "No:NewsDiv");
+      var URL = '';
+      if (localStorage.getItem("LastJob") === "Print") {
+        URL = BaseURL + 'jsp/cert_module/process_certNew.jsp'
+      } else {
+        URL = BaseURL + 'jsp/user_module/processApplication.jsp'
+      }
+      parent.location.href = URL;
+      console.log("NewsDiv:" + URL);
+      setTimeout(SwitchToJob, 2000);
+      return;
+    }
+  };
+
+  if (window.location.href === BaseURL) {
+    var URL = BaseURL + "jsp/user_module/user.html";
     window.open(URL, "_self");
+    localStorage.setItem("TryLogin", "Yes");
   }
 
   // Note, jQ replaces $ to avoid conflicts.
@@ -394,6 +412,7 @@ function main() {
             + '<input type="button" id="CmdClear" value="Clear Status"/>';
     jQ("#appid").parent().append(formElem);
     jQ("#retrieveDataFprApp").prependTo("#process");
+    localStorage.setItem("TryLogin", "No:Job Started");
   }
 
   /**
@@ -418,7 +437,8 @@ function main() {
 
       var LastRespTime = new Date();
       localStorage.setItem("LastRespTime", LastRespTime.getTime());
-      var URL = "http://castcertificatewb.gov.in/jsp/user/login.jsp";
+      localStorage.setItem("TryLogin", "Yes");
+      var URL = BaseURL + "jsp/user/login.jsp";
       parent.window.open(URL, "_self");
     }
     setTimeout(RefreshOnWait, TimeOut);
@@ -426,6 +446,9 @@ function main() {
   };
 
   RefreshOnWait();
+
+  TryLogin();
+  SwitchToJob();
 
   var TimeNow = new Date();
   localStorage.setItem("LastRespTime", TimeNow.getTime());
