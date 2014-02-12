@@ -462,9 +462,9 @@ jQueryInclude(function() {
       if (jQ("#btnSubmit").val() === "Go Back") {
         // Application Approved
 
-        var Msg = "Is" + jQ("tr:last-child > td:last-child").html();
+        var Msg = jQ("#comsubmit div tr:last-child td:last-child").text();
 
-        if (Msg.indexOf("Approved") > 0) {
+        if (Msg.indexOf("Approved") >= 0) {
           var i = localStorage.getItem("CurrentIndex");
           localStorage.setItem("CurrentStatus", "Next");
 
